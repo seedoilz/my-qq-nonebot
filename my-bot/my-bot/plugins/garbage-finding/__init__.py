@@ -1,14 +1,18 @@
+from nonebot import require
+from nonebot_plugin_apscheduler import scheduler
 from nonebot import on_command
 from nonebot.rule import to_me
 import requests
 from bs4 import BeautifulSoup
 from nonebot.params import *
 from nonebot.adapters.onebot.v11 import MessageSegment
-import inspect
+
+require("nonebot_plugin_apscheduler")
 
 tieba_news = on_command("贴吧", rule=to_me(), aliases={"找乐子", "热点"}, priority=10)
 topic_urls = []
 topics = []
+page_dics_list = []
 
 
 def get_html(url, headers):
@@ -64,23 +68,28 @@ def tieba_page_spider(url, num=5):
 
 def tieba_prompt():
     global topics, topic_urls
-    topics, topic_urls = tieba_topic_spider()
     msg = "请输入你感兴趣的🌶️新闻的编号:\n"
+    if topics is None or topic_urls is None or len(topics) == 0 or len(topic_urls) == 0:
+        topics, topic_urls = tieba_topic_spider()
     for i in range(0, len(topics)):
         if i != len(topics) - 1:
-            msg += f"{i+1}. {topics[i]}\n"
+            msg += f"{i + 1}. {topics[i]}\n"
         else:
-            msg += f"{i+1}. {topics[i]}"
+            msg += f"{i + 1}. {topics[i]}"
     return msg
 
 
 @tieba_news.got("index", prompt=tieba_prompt())
 async def handle_function(index: str = ArgPlainText()):
-    try:
-        index = int(index)
-    except:
+    if not index.isnumeric():
         await tieba_news.reject("请重新输入数字（仅数字即可）")
-    dic_list = tieba_page_spider(topic_urls[index - 1])
+    else:
+        index = int(index)
+    global page_dics_list
+    if page_dics_list is None or len(page_dics_list) == 0:
+        dic_list = tieba_page_spider(topic_urls[index - 1])
+    else:
+        dic_list = page_dics_list[index - 1]
 
     for i in range(0, len(dic_list)):
         ret_msg = "标题：" + dic_list[i]["title"] + "\n"
@@ -92,3 +101,11 @@ async def handle_function(index: str = ArgPlainText()):
             await tieba_news.send(ret_msg)
         else:
             await tieba_news.finish(ret_msg)
+
+
+@scheduler.scheduled_job("interval", minutes=30, id="job_0")
+async def run_every_30_mins():
+    global topics, topic_urls, page_dics_list
+    topics, topic_urls = tieba_topic_spider()
+    for i in range(0, 30):
+        page_dics_list.append(tieba_page_spider(topic_urls[i]))
