@@ -57,8 +57,9 @@ def tieba_page_spider(url, num=5):
         content = m.find_next(class_="content").text
         images_urls = []
         images = m.find_next(class_="photo-wrapper")
-        for image in images.find_all("img"):
-            images_urls.append(image["src"])
+        if images is not None:
+            for image in images.find_all("img"):
+                images_urls.append(image["src"])
         forum_name = m.find_next(class_="forum-name").text
         sub_page = {"title": title, "title_url": title_url, "content": content, "images_urls": images_urls,
                     "forum_name": forum_name, "reply_num": reply_num}
@@ -107,5 +108,14 @@ async def handle_function(index: str = ArgPlainText()):
 async def run_every_30_mins():
     global topics, topic_urls, page_dics_list
     topics, topic_urls = tieba_topic_spider()
+    # print(topics)
     for i in range(0, 30):
         page_dics_list.append(tieba_page_spider(topic_urls[i]))
+
+
+@scheduler.scheduled_job("interval", minutes=15, id="job_1")
+async def clear_every_15_mins():
+    global topics, topic_urls, page_dics_list
+    topics = []
+    topic_urls = []
+    page_dics_list = []
