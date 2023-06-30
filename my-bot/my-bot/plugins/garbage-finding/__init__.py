@@ -70,8 +70,7 @@ def tieba_page_spider(url, num=5):
 def tieba_prompt():
     global topics, topic_urls
     msg = "请输入你感兴趣的🌶️新闻的编号:\n"
-    if topics is None or topic_urls is None or len(topics) == 0 or len(topic_urls) == 0:
-        topics, topic_urls = tieba_topic_spider()
+    topics, topic_urls = tieba_topic_spider()
     for i in range(0, len(topics)):
         if i != len(topics) - 1:
             msg += f"{i + 1}. {topics[i]}\n"
@@ -82,15 +81,11 @@ def tieba_prompt():
 
 @tieba_news.got("index", prompt=tieba_prompt())
 async def handle_function(index: str = ArgPlainText()):
-    if not index.isnumeric():
+    if not index.isnumeric() or int(index) > len(topics):
         await tieba_news.reject("请重新输入数字（仅数字即可）")
     else:
         index = int(index)
-    global page_dics_list
-    if page_dics_list is None or len(page_dics_list) == 0:
-        dic_list = tieba_page_spider(topic_urls[index - 1])
-    else:
-        dic_list = page_dics_list[index - 1]
+    dic_list = tieba_page_spider(topic_urls[index - 1])
 
     for i in range(0, len(dic_list)):
         ret_msg = "标题：" + dic_list[i]["title"] + "\n"
@@ -104,18 +99,18 @@ async def handle_function(index: str = ArgPlainText()):
             await tieba_news.finish(ret_msg)
 
 
-@scheduler.scheduled_job("interval", minutes=30, id="job_0")
-async def run_every_30_mins():
-    global topics, topic_urls, page_dics_list
-    topics, topic_urls = tieba_topic_spider()
-    # print(topics)
-    for i in range(0, 30):
-        page_dics_list.append(tieba_page_spider(topic_urls[i]))
-
-
-@scheduler.scheduled_job("interval", minutes=15, id="job_1")
-async def clear_every_15_mins():
-    global topics, topic_urls, page_dics_list
-    topics = []
-    topic_urls = []
-    page_dics_list = []
+# @scheduler.scheduled_job("interval", minutes=30, id="job_0")
+# async def run_every_30_mins():
+#     global topics, topic_urls, page_dics_list
+#     topics, topic_urls = tieba_topic_spider()
+#     # print(topics)
+#     for i in range(0, 30):
+#         page_dics_list.append(tieba_page_spider(topic_urls[i]))
+#
+#
+# @scheduler.scheduled_job("interval", minutes=15, id="job_1")
+# async def clear_every_15_mins():
+#     global topics, topic_urls, page_dics_list
+#     topics = []
+#     topic_urls = []
+#     page_dics_list = []
